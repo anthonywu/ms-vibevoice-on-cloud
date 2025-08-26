@@ -16,21 +16,30 @@ class Input(BaseModel):
             'Speaker 1: Hey, remember "See You Again"',
             'Speaker 2: Yeah… from Furious 7, right? That song always hits deep."',
         ],
+        ui={"important": True},
     )
     speaker_names: List[str] = Field(
-        description="speaker names in order", default=["Alice", "Bob"]
+        description="speaker names in order",
+        default=["Alice", "Bob"],
+        ui={"important": True},
     )
-    voices: Literal[
-        "en-Alice_woman",
-        "en-Alice_woman_bgm",
-        "en-Carter_man",
-        "en-Frank_man",
-        "en-Maya_woman",
-        "in-Samuel_man",
-        "zh-Anchen_man_bgm",
-        "zh-Bowen_man",
-        "zh-Xinran_woman",
-    ] = Field(description="Available pre-built voices.", default="en-Alice_woman")
+    voices: List[
+        Literal[
+            "en-Alice_woman",
+            "en-Alice_woman_bgm",
+            "en-Carter_man",
+            "en-Frank_man",
+            "en-Maya_woman",
+            "in-Samuel_man",
+            "zh-Anchen_man_bgm",
+            "zh-Bowen_man",
+            "zh-Xinran_woman",
+        ]
+    ] = Field(
+        description="'Key' of voices to the 'Value' of speaker names",
+        default="en-Alice_woman",
+        ui={"important": True},
+    )
     cfg_scale: float = Field(
         description="CFG (Classifier-Free Guidance) scale for generation", default=1.3
     )
@@ -73,7 +82,7 @@ class VibeVoiceApp(
     image=ContainerImage.from_dockerfile("./Dockerfile"),
     kind="container",
     keep_alive=300,
-    startup_timeout=3600,
+    startup_timeout=600,
 ):
     machine_type = "GPU-A100"
 
