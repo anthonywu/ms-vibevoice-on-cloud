@@ -36,9 +36,11 @@ RUN . /app/bin/activate && \
     uv pip list
 
 # then tweak app env expectations
-RUN ln -s /app/bin/python /bin/python && \
+RUN . /app/bin/activate && \
+    ln -s /app/bin/python /bin/python && \
     ln -s /app/bin/python /bin/python3 && \
     ln -s /app/bin/python /bin/python3.10 && \
+    which -a python python3 python3.10 && \
     python -V && \
     python3 -V && \
     python3.10 -V && \

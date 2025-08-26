@@ -12,18 +12,18 @@ from pydantic import BaseModel, Field
 
 
 class Input(BaseModel):
-    text_input: str = Field(
+    text_input: List[str] = Field(
         description="The text to transform into speech.",
-        default=(
-            'Speaker 1: Hey, remember "See You Again"\n'
-            'Speaker 2: Yeah… from Furious 7, right? That song always hits deep."\n'
-        ),
-    )
-    cfg_scale: float = Field(
-        description="CFG (Classifier-Free Guidance) scale for generation", default=1.3
+        default=[
+            'Speaker 1: Hey, remember "See You Again"',
+            'Speaker 2: Yeah… from Furious 7, right? That song always hits deep."'
+        ],
     )
     speaker_names: List[str] = Field(
         description="speaker names in order", default=["Alice", "Bob"]
+    )
+    cfg_scale: float = Field(
+        description="CFG (Classifier-Free Guidance) scale for generation", default=1.3
     )
 
 
@@ -294,7 +294,7 @@ class VibeVoiceApp(
         return Output(sound_file=Audio.from_path(output_path))
 
 
-def parse_txt_script(txt_content: str) -> Tuple[List[str], List[str]]:
+def parse_txt_script(text_content_lines: List[str]) -> Tuple[List[str], List[str]]:
     """
     Parse txt script content and extract speakers and their text
     Fixed pattern: Speaker 1, Speaker 2, Speaker 3, Speaker 4
@@ -302,7 +302,7 @@ def parse_txt_script(txt_content: str) -> Tuple[List[str], List[str]]:
     """
     import re
 
-    lines = txt_content.strip().split("\n")
+    lines = text_content_lines
     scripts = []
     speaker_numbers = []
 
