@@ -348,7 +348,7 @@ class VibeVoiceApp(
 
             print("=" * 50)
 
-        return Output(sound_file=Audio.from_path(output_path))
+        return Output(audio=Audio.from_path(output_path))
 
 
 def parse_txt_script(text_content_lines: List[str]) -> Tuple[List[str], List[str]]:
