@@ -146,7 +146,10 @@ class VibeVoiceApp(
         print(f"Found {len(self.available_voices)} voice files in {voices_dir}")
         print(f"Available voices: {', '.join(self.available_voices.keys())}")
 
-        self.text_to_audio(Input())
+        if False:
+            # enable to run this warmup during debug/development
+            # helps you know if the processors works without deploying
+            self.text_to_audio(Input())
 
     def get_voice_path(self, speaker_name: str) -> str:
         """Get voice file path for a given speaker name"""
