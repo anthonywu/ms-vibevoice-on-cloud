@@ -1,6 +1,5 @@
-import logging
 from pathlib import Path
-from typing import List, Tuple
+from typing import List, Literal, Tuple
 
 import fal
 from fal.container import ContainerImage
@@ -10,18 +9,28 @@ from fal.toolkit import Audio, File, FAL_PERSISTENT_DIR
 from pydantic import BaseModel, Field
 
 
-
 class Input(BaseModel):
     text_input: List[str] = Field(
         description="The text to transform into speech.",
         default=[
             'Speaker 1: Hey, remember "See You Again"',
-            'Speaker 2: Yeah… from Furious 7, right? That song always hits deep."'
+            'Speaker 2: Yeah… from Furious 7, right? That song always hits deep."',
         ],
     )
     speaker_names: List[str] = Field(
         description="speaker names in order", default=["Alice", "Bob"]
     )
+    voices: Literal[
+        "en-Alice_woman",
+        "en-Alice_woman_bgm",
+        "en-Carter_man",
+        "en-Frank_man",
+        "en-Maya_woman",
+        "in-Samuel_man",
+        "zh-Anchen_man_bgm",
+        "zh-Bowen_man",
+        "zh-Xinran_woman",
+    ] = Field(description="Available pre-built voices.", default="en-Alice_woman")
     cfg_scale: float = Field(
         description="CFG (Classifier-Free Guidance) scale for generation", default=1.3
     )
@@ -31,43 +40,74 @@ class Output(BaseModel):
     audio: File = Field(description="The generated audio file.")
 
 
+def download_model(repo_id):
+    import os
+    from pathlib import Path
+    from huggingface_hub import snapshot_download
+    from huggingface_hub.errors import LocalEntryNotFoundError
+
+    try:
+        print(f"Checking for pre-downloaded model '{repo_id}'")
+        snapshot_download(
+            repo_id=repo_id,
+            local_files_only=True,
+        )
+        print(f"Found pre-downloaded model '{repo_id}'")
+    except LocalEntryNotFoundError:
+        print(f"Downloading model '{repo_id}'")
+        snapshot_download(
+            repo_id=repo_id,
+        )
+        print(f"Downloaded model '{repo_id}'")
+    display_tree(
+        Path(os.environ["HF_HOME"])
+        / "hub"
+        / f"models--{repo_id.replace('/', '--')}"
+        / "snapshots"
+    )
+
+
 class VibeVoiceApp(
     fal.App,
     name="ms-vibevoice",
     image=ContainerImage.from_dockerfile("./Dockerfile"),
     kind="container",
     keep_alive=300,
+    startup_timeout=3600,
 ):
+    machine_type = "GPU-A100"
+
     def setup(self):
         import os
-        from huggingface_hub import snapshot_download
-        from huggingface_hub.errors import LocalEntryNotFoundError
+        from pathlib import Path
+
+        if False:
+            # if on a small machine and a prior download was incomplete
+            # activate this if-block to force redownload the model files
+            import shutil
+
+            repo_id = "WestZhang/VibeVoice-Large-pt"
+            shutil.rmtree(
+                Path(os.environ["HF_HOME"])
+                / "hub"
+                / f"models--{repo_id.replace('/', '--')}"
+            )
+            print(f"Removed prior {repo_id} download...")
 
         # https://github.com/microsoft/VibeVoice
         # https://huggingface.co/WestZhang/VibeVoice-Large-pt
-        repo_id = "WestZhang/VibeVoice-Large-pt"
-        local_dir_path = FAL_PERSISTENT_DIR / "vibevoice"
-        try:
-            print(f"Checking for model '{repo_id}' at '{local_dir_path}'...")
-            snapshot_download(
-                repo_id=repo_id,
-                local_dir=local_dir_path,
-                local_files_only=True,
-            )
-            print(f"Found model '{repo_id}' at '{local_dir_path}'...")
-        except LocalEntryNotFoundError:
-            print(f"Downloading model '{repo_id}' to '{local_dir_path}'...")
-            snapshot_download(
-                repo_id=repo_id,
-                local_dir=local_dir_path,
-            )
-            print(f"Downloaded model '{repo_id}' to '{local_dir_path}'...")
-        print("Download complete.")
+        download_model("WestZhang/VibeVoice-Large-pt")
+        download_model("Qwen/Qwen2.5-7B")
 
-        self.model_path = local_dir_path
+        assert os.environ["HF_HOME"].startswith(str(FAL_PERSISTENT_DIR))
+        self.model_path = (
+            Path(os.environ["HF_HOME"])
+            / "hub/models--WestZhang--VibeVoice-Large-pt/snapshots/0b68ee6da8ca6bca98484758d06cbe9c33f49e7b"
+        )
+        assert self.model_path.exists()
 
         # clone of https://github.com/microsoft/VibeVoice/tree/main/demo
-        voices_dir = Path("/repo/voices/demo/voices")
+        voices_dir = Path("/repo/VibeVoice/demo/voices")
         self.voice_presets = {}
         wav_files = [
             f
@@ -97,6 +137,8 @@ class VibeVoiceApp(
         print(f"Found {len(self.available_voices)} voice files in {voices_dir}")
         print(f"Available voices: {', '.join(self.available_voices.keys())}")
 
+        self.text_to_audio(Input())
+
     def get_voice_path(self, speaker_name: str) -> str:
         """Get voice file path for a given speaker name"""
         # First try exact match
@@ -124,6 +166,9 @@ class VibeVoiceApp(
         import os
         import time
         import torch
+        import sys
+
+        sys.path.insert(0, "/repo/VibeVoice")
         from vibevoice.modular.modeling_vibevoice_inference import (
             VibeVoiceForConditionalGenerationInference,
         )
@@ -188,7 +233,10 @@ class VibeVoiceApp(
 
             # Load processor
             print(f"Loading processor & model from {self.model_path}")
-            processor = VibeVoiceProcessor.from_pretrained(self.model_path)
+            try:
+                processor = VibeVoiceProcessor.from_pretrained(self.model_path)
+            except OSError:
+                display_tree(self.model_path)
 
             # Load model
             model = VibeVoiceForConditionalGenerationInference.from_pretrained(
@@ -340,3 +388,51 @@ def parse_txt_script(text_content_lines: List[str]) -> Tuple[List[str], List[str
         speaker_numbers.append(current_speaker)
 
     return scripts, speaker_numbers
+
+
+def display_tree(directory: str | Path, max_depth: int = 2):
+    """
+    Displays a tree of files and directories for a given path up to a specified depth.
+
+    Args:
+        directory (str | Path): The starting directory path.
+        max_depth (int): The maximum depth to display. Defaults to 2.
+    """
+    from pathlib import Path
+
+    base_path = Path(directory)
+    if not base_path.is_dir():
+        print(f"Error: '{base_path}' is not a valid directory.")
+        return
+
+    print(f"{base_path.name}/")
+    _walk_directory(base_path, max_depth=max_depth)
+
+
+def _walk_directory(
+    path: Path, prefix: str = "", max_depth: int = 2, current_depth: int = 0
+):
+    """Helper function to recursively walk the directory."""
+    if current_depth >= max_depth:
+        return
+
+    # Get directory contents and sort them
+    try:
+        contents = sorted(list(path.iterdir()))
+    except PermissionError:
+        print(f"{prefix}└── [Permission Denied]")
+        return
+
+    pointers = ["├── "] * (len(contents) - 1) + ["└── "]
+
+    for pointer, item in zip(pointers, contents):
+        print(f"{prefix}{pointer}{item.name}")
+        if item.is_dir():
+            # Determine the prefix for the next level
+            extension = "│   " if pointer == "├── " else "    "
+            _walk_directory(
+                item,
+                prefix=prefix + extension,
+                max_depth=max_depth,
+                current_depth=current_depth + 1,
+            )

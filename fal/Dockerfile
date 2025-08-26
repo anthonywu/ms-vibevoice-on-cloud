@@ -4,13 +4,6 @@ FROM nvidia/cuda:13.0.0-cudnn-devel-ubuntu24.04
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1
 
-ENV HF_HUB_ENABLE_HF_TRANSFER=1
-ENV HF_HUB_CACHE=/data/hf_cache
-ENV HF_HUB_ENABLE_HF_TRANSFER=1
-ENV HF_XET_HIGH_PERFORMANCE=1
-ENV HF_XET_CHUNK_CACHE_SIZE_BYTES=1000000000000
-ENV HF_XET_NUM_CONCURRENT_RANGE_GETS=32
-
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 RUN apt update -y && \
@@ -45,3 +38,14 @@ RUN . /app/bin/activate && \
     python3 -V && \
     python3.10 -V && \
     PYTHONPATH=/repo/VibeVoice python3.10 -c 'import vibevoice; print(vibevoice); print(dir(vibevoice))'
+
+ENV HF_HOME=/data/hfcache
+
+# disable these if your machine_type is on the smaller side
+# https://docs.fal.ai/serverless/deployment-operations/deploy-to-production/#machine-types
+ENV HF_HUB_ENABLE_HF_TRANSFER=1
+ENV HF_XET_HIGH_PERFORMANCE=1
+ENV HF_XET_CHUNK_CACHE_SIZE_BYTES=1000000000000
+ENV HF_XET_NUM_CONCURRENT_RANGE_GETS=32
+
+ENV PATH=/app/bin:$PATH
