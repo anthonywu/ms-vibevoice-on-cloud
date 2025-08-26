@@ -23,23 +23,23 @@ class Input(BaseModel):
         default=["Alice", "Bob"],
         ui={"important": True},
     )
-    voices: List[
-        Literal[
-            "en-Alice_woman",
-            "en-Alice_woman_bgm",
-            "en-Carter_man",
-            "en-Frank_man",
-            "en-Maya_woman",
-            "in-Samuel_man",
-            "zh-Anchen_man_bgm",
-            "zh-Bowen_man",
-            "zh-Xinran_woman",
-        ]
-    ] = Field(
-        description="'Key' of voices to the 'Value' of speaker names",
-        default="en-Alice_woman",
-        ui={"important": True},
-    )
+    # voices: List[
+    #     Literal[
+    #         "en-Alice_woman",
+    #         "en-Alice_woman_bgm",
+    #         "en-Carter_man",
+    #         "en-Frank_man",
+    #         "en-Maya_woman",
+    #         "in-Samuel_man",
+    #         "zh-Anchen_man_bgm",
+    #         "zh-Bowen_man",
+    #         "zh-Xinran_woman",
+    #     ]
+    # ] = Field(
+    #     description="'Key' of voices to the 'Value' of speaker names",
+    #     default=["en-Alice_woman", "en-Frank_man"],
+    #     ui={"important": True},
+    # )
     cfg_scale: float = Field(
         description="CFG (Classifier-Free Guidance) scale for generation", default=1.3
     )
